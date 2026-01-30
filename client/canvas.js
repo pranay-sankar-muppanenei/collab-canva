@@ -6,6 +6,35 @@ const ctx = canvas.getContext("2d");
 
 let socket = null;
 
+function render() {
+  drawCursors();
+  requestAnimationFrame(render);
+}
+
+render();
+
+
+function initSocketListeners(sock) {
+  socket = sock;
+
+  socket.on("draw", (data) => {
+    drawLine(data.start, data.end, data.color, data.width);
+  });
+
+  socket.on("init", (data) => {
+    myColor = data.color;
+  });
+
+  socket.on("cursor", (data) => {
+    remoteCursors[data.id] = data;
+  });
+
+  socket.on("cursor-remove", (id) => {
+    delete remoteCursors[id];
+  });
+}
+
+
 /* ---------- CANVAS SETUP ---------- */
 
 function resizeCanvas() {
@@ -29,37 +58,13 @@ function drawLine(start, end, color, width) {
 /* ---------- SOCKET INIT (SAFE) ---------- */
 
 window.addEventListener("socket-ready", () => {
-  socket = window.socket;
-
-    socket.on("draw", (data) => {
-    drawLine(data.start, data.end, data.color, data.width);
-  });
-
-  // 🔹 receive your assigned color
-  socket.on("init", (data) => {
-    myColor = data.color;
-  });
-
-  // 🔹 receive other users' cursor positions
-  socket.on("cursor", (data) => {
-    remoteCursors[data.id] = data;
-  });
-
-  // 🔹 remove cursor when user disconnects
-  socket.on("cursor-remove", (id) => {
-    delete remoteCursors[id];
-  });
-
-
+  initSocketListeners(window.socket);
 });
 
-// 🔥 fallback in case event already fired
-if (window.socket) {
-  socket = window.socket;
 
-  socket.on("draw", (data) => {
-    drawLine(data.start, data.end, data.color, data.width);
-  });
+// 🔥 fallback in case event already fired
+if (window.socket && !socket) {
+  initSocketListeners(window.socket);
 }
 
 
