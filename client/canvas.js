@@ -1,8 +1,12 @@
 const remoteCursors = {};
 let myColor = "black";
 
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+const drawCanvas = document.getElementById("drawCanvas");
+const drawCtx = drawCanvas.getContext("2d");
+
+const cursorCanvas = document.getElementById("cursorCanvas");
+const cursorCtx = cursorCanvas.getContext("2d");
+
 
 let socket = null;
 
@@ -38,22 +42,27 @@ function initSocketListeners(sock) {
 /* ---------- CANVAS SETUP ---------- */
 
 function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  drawCanvas.width = window.innerWidth;
+  drawCanvas.height = window.innerHeight;
+
+  cursorCanvas.width = window.innerWidth;
+  cursorCanvas.height = window.innerHeight;
 }
+
 
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
 function drawLine(start, end, color, width) {
-  ctx.beginPath();
-  ctx.moveTo(start.x, start.y);
-  ctx.lineTo(end.x, end.y);
-  ctx.strokeStyle = color;
-  ctx.lineWidth = width;
-  ctx.lineCap = "round";
-  ctx.stroke();
+  drawCtx.beginPath();
+  drawCtx.moveTo(start.x, start.y);
+  drawCtx.lineTo(end.x, end.y);
+  drawCtx.strokeStyle = color;
+  drawCtx.lineWidth = width;
+  drawCtx.lineCap = "round";
+  drawCtx.stroke();
 }
+
 
 /* ---------- SOCKET INIT (SAFE) ---------- */
 
@@ -74,19 +83,23 @@ let isDrawing = false;
 let lastPos = null;
 
 function drawCursors() {
+  // 🔥 clear ONLY cursor layer
+  cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
+
   Object.values(remoteCursors).forEach(({ x, y, color }) => {
-    ctx.beginPath();
-    ctx.arc(x, y, 5, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
+    cursorCtx.beginPath();
+    cursorCtx.arc(x, y, 5, 0, Math.PI * 2);
+    cursorCtx.fillStyle = color;
+    cursorCtx.fill();
   });
 }
 
 
+
 function getCanvasCoordinates(event) {
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
+  const rect = drawCanvas.getBoundingClientRect();
+  const scaleX = drawCanvas.width / rect.width;
+  const scaleY = drawCanvas.height / rect.height;
 
   return {
     x: (event.clientX - rect.left) * scaleX,
@@ -94,12 +107,12 @@ function getCanvasCoordinates(event) {
   };
 }
 
-canvas.addEventListener("mousedown", (e) => {
+drawCanvas.addEventListener("mousedown", (e) => {
   isDrawing = true;
   lastPos = getCanvasCoordinates(e);
 });
 
-canvas.addEventListener("mousemove", (e) => {
+drawCanvas.addEventListener("mousemove", (e) => {
   const pos = getCanvasCoordinates(e);
 
   // 🔹 emit cursor movement
@@ -131,7 +144,7 @@ canvas.addEventListener("mousemove", (e) => {
 
 
 
-canvas.addEventListener("mouseup", () => {
+drawCanvas.addEventListener("mouseup", () => {
   isDrawing = false;
   lastPos = null;
 });
