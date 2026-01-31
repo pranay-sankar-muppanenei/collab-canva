@@ -7,8 +7,10 @@ const drawCtx = drawCanvas.getContext("2d");
 const cursorCanvas = document.getElementById("cursorCanvas");
 const cursorCtx = cursorCanvas.getContext("2d");
 
-
+let currentStrokeId = null;
 let socket = null;
+const strokesMap = {};
+
 
 function render() {
   drawCursors();
@@ -21,9 +23,7 @@ render();
 function initSocketListeners(sock) {
   socket = sock;
 
-  socket.on("draw", (data) => {
-    drawLine(data.start, data.end, data.color, data.width);
-  });
+  
 
   socket.on("init", (data) => {
     myColor = data.color;
@@ -36,6 +36,32 @@ function initSocketListeners(sock) {
   socket.on("cursor-remove", (id) => {
     delete remoteCursors[id];
   });
+
+socket.on("stroke:start", (stroke) => {
+  strokesMap[stroke.id] = {
+    color: stroke.color,
+    width: stroke.width,
+    points: [...stroke.points] // first point
+  };
+});
+
+
+socket.on("stroke:move", (data) => {
+  const stroke = strokesMap[data.strokeId];
+  if (!stroke) return;
+
+  const lastPoint = stroke.points[stroke.points.length - 1];
+
+  drawLine(lastPoint, data.point, stroke.color, stroke.width);
+
+  stroke.points.push(data.point);
+});
+
+
+socket.on("stroke:end", () => {
+  // nothing special yet
+});
+
 }
 
 
@@ -110,7 +136,19 @@ function getCanvasCoordinates(event) {
 drawCanvas.addEventListener("mousedown", (e) => {
   isDrawing = true;
   lastPos = getCanvasCoordinates(e);
+
+  currentStrokeId = crypto.randomUUID();
+
+  if (socket) {
+    socket.emit("stroke:start", {
+      strokeId: currentStrokeId,
+      color: "black",
+      width: 4,
+      point: lastPos
+    });
+  }
 });
+
 
 drawCanvas.addEventListener("mousemove", (e) => {
   const pos = getCanvasCoordinates(e);
@@ -130,14 +168,13 @@ drawCanvas.addEventListener("mousemove", (e) => {
   drawLine(lastPos, pos, "black", 4);
   drawCursors();
 
-  if (socket) {
-    socket.emit("draw", {
-      start: lastPos,
-      end: pos,
-      color: "black",
-      width: 4
-    });
-  }
+if (socket && currentStrokeId) {
+  socket.emit("stroke:move", {
+    strokeId: currentStrokeId,
+    point: pos
+  });
+}
+
 
   lastPos = pos;
 });
@@ -145,6 +182,14 @@ drawCanvas.addEventListener("mousemove", (e) => {
 
 
 drawCanvas.addEventListener("mouseup", () => {
+  if (socket && currentStrokeId) {
+    socket.emit("stroke:end", {
+      strokeId: currentStrokeId
+    });
+  }
+
   isDrawing = false;
   lastPos = null;
+  currentStrokeId = null;
 });
+
