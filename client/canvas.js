@@ -62,6 +62,27 @@ socket.on("stroke:end", () => {
   // nothing special yet
 });
 
+socket.on("history", (strokes) => {
+  strokes.forEach((stroke) => {
+    strokesMap[stroke.id] = {
+      color: stroke.color,
+      width: stroke.width,
+      points: [...stroke.points]
+    };
+
+    // redraw stroke
+    for (let i = 1; i < stroke.points.length; i++) {
+      drawLine(
+        stroke.points[i - 1],
+        stroke.points[i],
+        stroke.color,
+        stroke.width
+      );
+    }
+  });
+});
+
+
 }
 
 
